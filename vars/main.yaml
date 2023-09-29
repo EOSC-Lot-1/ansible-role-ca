@@ -1,0 +1,14 @@
+---
+
+#ca_dir: '/home/{{ ansible_user }}/documents/identity/ca'
+
+#key_password_file: root-key-password
+
+#subject:
+#  country_code: GR
+#  locality_name: Athens
+#  organization_name: Nowhere Land
+#  organizational_unit_name: IT
+#  email_address: admin@example.net
+#  common_name: 'Foo CA 1'
+

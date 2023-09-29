@@ -1,0 +1,70 @@
+---
+
+- debug: var=subject
+- debug: var=key_password_file
+- debug: var=ca_dir
+
+- ansible.builtin.file:
+    path: '{{ ca_dir }}'
+    state: directory
+    mode: '0750'
+
+- ansible.builtin.file:
+    path: '{{ ca_dir }}/db.certs'
+    state: directory
+    mode: '0750'
+
+- ansible.builtin.file:
+    path: '{{ ca_dir }}/db.index'
+    state: touch
+    modification_time: preserve
+    mode: '0640'
+
+- ansible.builtin.copy:
+    src: ca.conf
+    dest: '{{ ca_dir }}/ca.conf'
+    mode: '0640'
+
+- ansible.builtin.copy:
+    content: '01'
+    force: false
+    dest: '{{ ca_dir }}/db.serial'
+    mode: '0640'
+
+- name: Generate random for CA
+  ansible.builtin.command:
+    cmd: >-
+      dd if=/dev/urandom of=db.random bs=256 count=1
+    chdir: '{{ ca_dir }}'
+    creates: '{{ ca_dir }}/db.random'
+
+- name: Generate private key for CA
+  ansible.builtin.command:
+    cmd: >-
+      openssl genrsa -out root.key -aes256 -passout env:passphrase "{{ key_size }}"
+    chdir: '{{ ca_dir }}'
+    creates: '{{ ca_dir }}/root.key'
+  vars:
+    key_size: 4096
+  environment:
+    passphrase: '{{ lookup("password", key_password_file, chars=["ascii_letters", "digits"]) }}'
+
+- name: Generate self-signed X509 certificate for the CA
+  ansible.builtin.command:
+    cmd: >-
+      openssl req -x509 -new -key root.key -passin env:passphrase -out root.crt -subj "{{ subj }}"
+    chdir: '{{ ca_dir }}'
+    creates: '{{ ca_dir }}/root.crt'
+  vars:
+    subj: '/C={{ subject.country_code }}/L={{ subject.locality_name }}/O={{ subject.organization_name }}/OU={{ subject.organizational_unit_name }}/CN={{ subject.common_name }}/emailAddress={{ subject.email_address }}'
+  environment:
+    passphrase: '{{ lookup("password", key_password_file) }}'
+
+- name: (Re)generate revocation lists (CRL)
+  ansible.builtin.command: 
+    cmd: >-
+      openssl ca -config ca.conf -gencrl -passin env:passphrase -out root.crl
+    chdir: '{{ ca_dir }}'
+  vars:
+  environment:
+    passphrase: '{{ lookup("password", key_password_file) }}'
