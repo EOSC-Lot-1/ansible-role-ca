@@ -52,10 +52,11 @@
 - name: Generate self-signed X509 certificate for the CA
   ansible.builtin.command:
     cmd: >-
-      openssl req -x509 -new -key root.key -passin env:passphrase -out root.crt -subj "{{ subj }}"
+      openssl req -x509 -new -key root.key -passin env:passphrase -out root.crt -subj "{{ subj }}" -days "{{ days }}"
     chdir: '{{ ca_dir }}'
     creates: '{{ ca_dir }}/root.crt'
   vars:
+    days: 2190
     subj: '/C={{ subject.country_code }}/L={{ subject.locality_name }}/O={{ subject.organization_name }}/OU={{ subject.organizational_unit_name }}/CN={{ subject.common_name }}/emailAddress={{ subject.email_address }}'
   environment:
     passphrase: '{{ lookup("password", key_password_file) }}'
